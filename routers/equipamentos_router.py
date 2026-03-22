@@ -1,123 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import Equipamento, Usuario, Manutencao
-from schemas import EquipamentoCreate, EquipamentoUpdate
 from auth import get_current_user
+from database import get_db
+from models import Usuario
+from schemas import EquipamentoCreate, EquipamentoListResponse, EquipamentoOut, EquipamentoUpdate, MessageResponse
+from services.equipamentos_service import (
+    atualizar_equipamento,
+    buscar_equipamento_do_usuario,
+    criar_equipamento,
+    deletar_equipamento,
+    listar_equipamentos_do_usuario,
+)
 
 router = APIRouter(prefix="/equipamentos", tags=["Equipamentos"])
 
 
-def normalizar_texto(texto: str) -> str:
-    if not texto:
-        return ""
-    return texto.strip().lower()
-
-
-def existe_manutencao_aberta(db: Session, equipamento_id: int, usuario_id: int) -> bool:
-    manutencoes = (
-        db.query(Manutencao)
-        .filter(
-            Manutencao.equipamento_id == equipamento_id,
-            Manutencao.usuario_id == usuario_id
-        )
-        .all()
-    )
-
-    return any(
-        normalizar_texto(m.status) in ["aberta", "em andamento", "pendente"]
-        for m in manutencoes
-    )
-
-
-def validar_status_manual(status: str) -> str:
-    status_normalizado = normalizar_texto(status)
-
-    if status_normalizado in ["operando", "operacional"]:
-        return "operando"
-
-    if status_normalizado == "parado":
-        return "parado"
-
-    if status_normalizado in ["em manutenção", "em manutencao", "manutenção", "manutencao"]:
-        raise HTTPException(
-            status_code=400,
-            detail='O status "em manutenção" é definido automaticamente pelo sistema'
-        )
-
-    raise HTTPException(
-        status_code=400,
-        detail='Status inválido. Use apenas "operando" ou "parado"'
-    )
-
-
-@router.post("/", status_code=201)
-def criar_equipamento(
+@router.post("/", response_model=EquipamentoOut, status_code=status.HTTP_201_CREATED)
+def criar(
     dados: EquipamentoCreate,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    status_final = validar_status_manual(dados.status)
-
-    equipamento = Equipamento(
-        nome=dados.nome,
-        modelo=dados.modelo,
-        fabricante=dados.fabricante,
-        ano=dados.ano,
-        status=status_final,
-        usuario_id=usuario.id
-    )
-
-    db.add(equipamento)
-    db.commit()
-    db.refresh(equipamento)
-
-    return equipamento
+    return criar_equipamento(db, usuario.id, dados)
 
 
-@router.get("/")
-def listar_equipamentos(
+@router.get("/", response_model=EquipamentoListResponse)
+def listar(
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    query = db.query(Equipamento).filter(Equipamento.usuario_id == usuario.id)
-
-    total = query.count()
-    total_paginas = (total + por_pagina - 1) // por_pagina
-
-    dados = (
-        query.order_by(Equipamento.id.desc())
-        .offset((pagina - 1) * por_pagina)
-        .limit(por_pagina)
-        .all()
-    )
-
-    return {
-        "total": total,
-        "pagina": pagina,
-        "por_pagina": por_pagina,
-        "total_paginas": total_paginas,
-        "dados": dados
-    }
+    return listar_equipamentos_do_usuario(db, usuario.id, pagina, por_pagina)
 
 
-@router.get("/{equipamento_id}")
-def buscar_equipamento(
+@router.get("/{equipamento_id}", response_model=EquipamentoOut)
+def buscar(
     equipamento_id: int,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    equipamento = (
-        db.query(Equipamento)
-        .filter(
-            Equipamento.id == equipamento_id,
-            Equipamento.usuario_id == usuario.id
-        )
-        .first()
-    )
+    equipamento = buscar_equipamento_do_usuario(db, equipamento_id, usuario.id)
 
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
@@ -125,60 +49,31 @@ def buscar_equipamento(
     return equipamento
 
 
-@router.put("/{equipamento_id}")
-def atualizar_equipamento(
+@router.put("/{equipamento_id}", response_model=EquipamentoOut)
+def atualizar(
     equipamento_id: int,
     dados: EquipamentoUpdate,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    equipamento = (
-        db.query(Equipamento)
-        .filter(
-            Equipamento.id == equipamento_id,
-            Equipamento.usuario_id == usuario.id
-        )
-        .first()
-    )
+    equipamento = buscar_equipamento_do_usuario(db, equipamento_id, usuario.id)
 
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
 
-    equipamento.nome = dados.nome
-    equipamento.modelo = dados.modelo
-    equipamento.fabricante = dados.fabricante
-    equipamento.ano = dados.ano
-
-    if existe_manutencao_aberta(db, equipamento.id, usuario.id):
-        equipamento.status = "em manutenção"
-    else:
-        equipamento.status = validar_status_manual(dados.status)
-
-    db.commit()
-    db.refresh(equipamento)
-
-    return equipamento
+    return atualizar_equipamento(db, equipamento, usuario.id, dados)
 
 
-@router.delete("/{equipamento_id}")
-def deletar_equipamento(
+@router.delete("/{equipamento_id}", response_model=MessageResponse)
+def deletar(
     equipamento_id: int,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    equipamento = (
-        db.query(Equipamento)
-        .filter(
-            Equipamento.id == equipamento_id,
-            Equipamento.usuario_id == usuario.id
-        )
-        .first()
-    )
+    equipamento = buscar_equipamento_do_usuario(db, equipamento_id, usuario.id)
 
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
 
-    db.delete(equipamento)
-    db.commit()
-
+    deletar_equipamento(db, equipamento)
     return {"message": "Equipamento deletado com sucesso"}

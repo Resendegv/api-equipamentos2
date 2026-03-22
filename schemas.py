@@ -1,11 +1,16 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
+
+
+class MessageResponse(BaseModel):
+    message: str
 
 
 class UsuarioCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=4, max_length=100)
 
 
 class UsuarioLogin(BaseModel):
@@ -26,7 +31,7 @@ class Token(BaseModel):
     token_type: str
 
 
-class EquipamentoCreate(BaseModel):
+class EquipamentoBase(BaseModel):
     nome: str
     modelo: str
     fabricante: str
@@ -34,12 +39,12 @@ class EquipamentoCreate(BaseModel):
     status: str
 
 
-class EquipamentoUpdate(BaseModel):
-    nome: str
-    modelo: str
-    fabricante: str
-    ano: int
-    status: str
+class EquipamentoCreate(EquipamentoBase):
+    pass
+
+
+class EquipamentoUpdate(EquipamentoBase):
+    pass
 
 
 class EquipamentoOut(BaseModel):
@@ -55,14 +60,24 @@ class EquipamentoOut(BaseModel):
         from_attributes = True
 
 
-# 🔥 NOVO
-class ManutencaoCreate(BaseModel):
+class EquipamentoListResponse(BaseModel):
+    total: int
+    pagina: int
+    por_pagina: int
+    total_paginas: int
+    dados: list[EquipamentoOut]
+
+
+class ManutencaoBase(BaseModel):
     titulo: str
-    descricao: str
+    descricao: Optional[str] = None
     tipo: str
     status: str
-    equipamento_id: int
     data_prevista: Optional[datetime] = None
+
+
+class ManutencaoCreate(ManutencaoBase):
+    equipamento_id: int
 
 
 class ManutencaoUpdate(BaseModel):
@@ -78,7 +93,7 @@ class ManutencaoUpdate(BaseModel):
 class ManutencaoOut(BaseModel):
     id: int
     titulo: str
-    descricao: str
+    descricao: Optional[str]
     tipo: str
     status: str
     data_criacao: datetime
@@ -86,26 +101,23 @@ class ManutencaoOut(BaseModel):
     data_conclusao: Optional[datetime]
     equipamento_id: int
     usuario_id: int
-
-    # 🔥 CAMPOS CALCULADOS
-    prazo_restante: Optional[int]
-    vencida_dias: Optional[int]
-    status_prazo: Optional[str]
+    equipamento_nome: Optional[str] = None
+    prazo_restante: Optional[int] = None
+    vencida_dias: Optional[int] = None
+    status_prazo: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
-class EstatisticasOut(BaseModel):
-    total_equipamentos: int
-    total_manutencoes: int
-    equipamentos_operacionais: int
-    equipamentos_em_manutencao: int
-    equipamentos_parados: int
-    manutencoes_abertas: int
-    manutencoes_concluidas: int
+class ManutencaoListResponse(BaseModel):
+    total: int
+    pagina: int
+    por_pagina: int
+    total_paginas: int
+    dados: list[ManutencaoOut]
 
 
-class DashboardOut(BaseModel):
-    equipamentos: dict
-    manutencoes: dict
+class EquipamentoComManutencoesResponse(BaseModel):
+    equipamento: EquipamentoOut
+    manutencoes: list[ManutencaoOut]

@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -12,8 +13,16 @@ class Usuario(Base):
     username = Column(String, unique=True, nullable=False, index=True)
     senha_hash = Column(String, nullable=False)
 
-    equipamentos = relationship("Equipamento", back_populates="usuario", cascade="all, delete")
-    manutencoes = relationship("Manutencao", back_populates="usuario", cascade="all, delete")
+    equipamentos = relationship(
+        "Equipamento",
+        back_populates="usuario",
+        cascade="all, delete-orphan"
+    )
+    manutencoes = relationship(
+        "Manutencao",
+        back_populates="usuario",
+        cascade="all, delete-orphan"
+    )
 
 
 class Equipamento(Base):
@@ -24,12 +33,16 @@ class Equipamento(Base):
     modelo = Column(String, nullable=False)
     fabricante = Column(String, nullable=False)
     ano = Column(Integer, nullable=False)
-    status = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="operando")
 
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
     usuario = relationship("Usuario", back_populates="equipamentos")
-    manutencoes = relationship("Manutencao", back_populates="equipamento", cascade="all, delete")
+    manutencoes = relationship(
+        "Manutencao",
+        back_populates="equipamento",
+        cascade="all, delete-orphan"
+    )
 
 
 class Manutencao(Base):
@@ -40,11 +53,7 @@ class Manutencao(Base):
     descricao = Column(Text, nullable=True)
     tipo = Column(String, nullable=False)
     status = Column(String, nullable=False)
-
-    # 🔥 JÁ EXISTENTE
-    data_criacao = Column(DateTime, default=datetime.utcnow)
-
-    # 🔥 NOVOS CAMPOS (PRAZO)
+    data_criacao = Column(DateTime, default=datetime.utcnow, nullable=False)
     data_prevista = Column(DateTime, nullable=True)
     data_conclusao = Column(DateTime, nullable=True)
 

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from config import settings
 from database import Base, engine
 from routers.auth_router import router as auth_router
 from routers.equipamentos_router import router as equipamentos_router
@@ -8,15 +9,11 @@ from routers.manutencoes_router import router as manutencoes_router
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Fleet Maintenance System")
+app = FastAPI(title=settings.APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "https://frontend-equipamentos-six.vercel.app",
-    ],
+    allow_origins=settings.FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

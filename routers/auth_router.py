@@ -1,22 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from auth import create_access_token, get_current_user, hash_password, verify_password
 from database import get_db
 from models import Usuario
-from schemas import UsuarioCreate, UsuarioLogin, Token
-from auth import hash_password, verify_password, create_access_token
+from schemas import MessageResponse, Token, UsuarioCreate, UsuarioLogin, UsuarioOut
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register")
+@router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 def register(data: UsuarioCreate, db: Session = Depends(get_db)):
-    usuario_existente = (
-        db.query(Usuario)
-        .filter(Usuario.username == data.username)
-        .first()
-    )
+    usuario_existente = db.query(Usuario).filter(Usuario.username == data.username).first()
 
     if usuario_existente:
         raise HTTPException(status_code=400, detail="Usuário já existe")
@@ -35,11 +31,7 @@ def register(data: UsuarioCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login_json(data: UsuarioLogin, db: Session = Depends(get_db)):
-    usuario = (
-        db.query(Usuario)
-        .filter(Usuario.username == data.username)
-        .first()
-    )
+    usuario = db.query(Usuario).filter(Usuario.username == data.username).first()
 
     if not usuario:
         raise HTTPException(status_code=400, detail="Usuário inválido")
@@ -60,11 +52,7 @@ def login_form_compat(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    usuario = (
-        db.query(Usuario)
-        .filter(Usuario.username == form_data.username)
-        .first()
-    )
+    usuario = db.query(Usuario).filter(Usuario.username == form_data.username).first()
 
     if not usuario:
         raise HTTPException(status_code=400, detail="Usuário inválido")
@@ -78,3 +66,8 @@ def login_form_compat(
         "access_token": token,
         "token_type": "bearer"
     }
+
+
+@router.get("/me", response_model=UsuarioOut)
+def me(usuario: Usuario = Depends(get_current_user)):
+    return usuario
