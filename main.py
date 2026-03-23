@@ -7,9 +7,13 @@ from routers.auth_router import router as auth_router
 from routers.equipamentos_router import router as equipamentos_router
 from routers.manutencoes_router import router as manutencoes_router
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title=settings.APP_NAME)
+
+
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
+
 
 app.add_middleware(
     CORSMiddleware,

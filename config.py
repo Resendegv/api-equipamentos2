@@ -4,13 +4,6 @@ import os
 class Settings:
     APP_NAME = os.getenv("APP_NAME", "Fleet Maintenance System")
 
-    # Para produção, o ideal é SEMPRE usar DATABASE_URL do ambiente.
-    # Mantive um fallback local para facilitar testes, mas agora já em PostgreSQL.
-    DATABASE_URL = os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://postgres:postgres@localhost:5432/fleet_maintenance"
-    )
-
     SECRET_KEY = os.getenv("SECRET_KEY", "troque_essa_chave_em_producao")
     ALGORITHM = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
@@ -25,14 +18,14 @@ class Settings:
     ]
 
     @property
-    def database_url_normalized(self) -> str:
-        """
-        Normaliza a URL para o formato esperado pelo SQLAlchemy.
-        Render/alguns provedores podem fornecer postgres://
-        e o SQLAlchemy prefere postgresql+psycopg2://
-        """
-        url = self.DATABASE_URL.strip()
+    def database_url(self) -> str:
+        url = os.getenv("DATABASE_URL", "").strip()
 
+        if not url:
+            raise ValueError("DATABASE_URL não foi definida no ambiente.")
+
+        # Alguns provedores entregam postgres://
+        # SQLAlchemy com psycopg2 espera postgresql+psycopg2://
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+psycopg2://", 1)
         elif url.startswith("postgresql://"):
