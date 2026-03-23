@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from models import Equipamento, Manutencao
 
 
-STATUS_ABERTOS = {"aberta", "em andamento", "pendente", "agendada"}
+STATUS_EM_ANDAMENTO = {"em andamento"}
 STATUS_CONCLUIDOS = {"concluida", "concluída", "finalizada", "encerrada"}
 
 
@@ -14,8 +14,8 @@ def normalizar_texto(texto: str | None) -> str:
     return (texto or "").strip().lower()
 
 
-def status_em_aberto(status: str | None) -> bool:
-    return normalizar_texto(status) in STATUS_ABERTOS
+def status_em_andamento(status: str | None) -> bool:
+    return normalizar_texto(status) in STATUS_EM_ANDAMENTO
 
 
 def status_concluida(status: str | None) -> bool:
@@ -101,9 +101,9 @@ def atualizar_status_equipamento(db: Session, equipamento_id: int, usuario_id: i
         .all()
     )
 
-    existe_aberta = any(status_em_aberto(item.status) for item in manutencoes)
+    existe_em_andamento = any(status_em_andamento(item.status) for item in manutencoes)
 
-    if existe_aberta:
+    if existe_em_andamento:
         equipamento.status = "em manutenção"
     elif equipamento.status == "em manutenção":
         equipamento.status = "operando"
@@ -170,16 +170,18 @@ def criar_manutencao(db: Session, usuario_id: int, dados):
         status=dados.status,
         equipamento_id=dados.equipamento_id,
         usuario_id=usuario_id,
-        data_prevista=dados.data_prevista
+        data_prevista=dados.data_prevista,
+        data_conclusao=dados.data_conclusao
     )
 
     db.add(nova)
+    db.flush()
 
-    if status_em_aberto(dados.status):
-        equipamento.status = "em manutenção"
+    atualizar_status_equipamento(db, dados.equipamento_id, usuario_id)
 
     db.commit()
     db.refresh(nova)
+    db.refresh(equipamento)
 
     return {
         "message": "Manutenção criada com sucesso",
@@ -216,7 +218,7 @@ def atualizar_manutencao(db: Session, manutencao: Manutencao, usuario_id: int, d
     if dados.data_conclusao is not None:
         manutencao.data_conclusao = dados.data_conclusao
 
-    db.commit()
+    db.flush()
 
     atualizar_status_equipamento(db, equipamento_id_anterior, usuario_id)
     atualizar_status_equipamento(db, manutencao.equipamento_id, usuario_id)
@@ -239,9 +241,10 @@ def deletar_manutencao(db: Session, manutencao: Manutencao, usuario_id: int):
     equipamento_id = manutencao.equipamento_id
 
     db.delete(manutencao)
-    db.commit()
+    db.flush()
 
     atualizar_status_equipamento(db, equipamento_id, usuario_id)
+
     db.commit()
 
     return {"message": "Manutenção deletada com sucesso"}

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from models import Equipamento, Manutencao
 
 
-STATUS_ABERTOS = {"aberta", "em andamento", "pendente"}
+STATUS_EM_ANDAMENTO = {"em andamento"}
 STATUS_EQUIPAMENTO_VALIDOS = {"operando", "parado"}
 
 
@@ -12,8 +12,8 @@ def normalizar_texto(texto: str | None) -> str:
     return (texto or "").strip().lower()
 
 
-def status_em_aberto(status: str | None) -> bool:
-    return normalizar_texto(status) in STATUS_ABERTOS
+def status_em_andamento(status: str | None) -> bool:
+    return normalizar_texto(status) in STATUS_EM_ANDAMENTO
 
 
 def validar_status_manual(status: str) -> str:
@@ -82,6 +82,19 @@ def existe_manutencao(db: Session, equipamento_id: int, usuario_id: int) -> bool
     )
 
 
+def existe_manutencao_em_andamento(db: Session, equipamento_id: int, usuario_id: int) -> bool:
+    manutencoes = (
+        db.query(Manutencao)
+        .filter(
+            Manutencao.equipamento_id == equipamento_id,
+            Manutencao.usuario_id == usuario_id
+        )
+        .all()
+    )
+
+    return any(status_em_andamento(item.status) for item in manutencoes)
+
+
 def criar_equipamento(db: Session, usuario_id: int, dados):
     status_final = validar_status_manual(dados.status)
 
@@ -106,7 +119,7 @@ def atualizar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int
     equipamento.fabricante = dados.fabricante
     equipamento.ano = dados.ano
 
-    if existe_manutencao(db, equipamento.id, usuario_id):
+    if existe_manutencao_em_andamento(db, equipamento.id, usuario_id):
         equipamento.status = "em manutenção"
     else:
         equipamento.status = validar_status_manual(dados.status)
@@ -117,8 +130,7 @@ def atualizar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int
 
 
 def deletar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int):
-    
-    # 🔥 VALIDAÇÃO CRÍTICA
+
     if existe_manutencao(db, equipamento.id, usuario_id):
         raise HTTPException(
             status_code=400,
