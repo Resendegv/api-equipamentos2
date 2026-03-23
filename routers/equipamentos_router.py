@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from database import get_db
 from models import Usuario
-from schemas import EquipamentoCreate, EquipamentoListResponse, EquipamentoOut, EquipamentoUpdate, MessageResponse
+from schemas import (
+    EquipamentoCreate,
+    EquipamentoListResponse,
+    EquipamentoOut,
+    EquipamentoUpdate,
+    MessageResponse,
+)
 from services.equipamentos_service import (
     atualizar_equipamento,
     buscar_equipamento_do_usuario,
@@ -22,7 +29,16 @@ def criar(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
-    return criar_equipamento(db, usuario.id, dados)
+    try:
+        return criar_equipamento(db, usuario.id, dados)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno ao criar equipamento: {str(e)}"
+        )
 
 
 @router.get("/", response_model=EquipamentoListResponse)
@@ -61,7 +77,16 @@ def atualizar(
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
 
-    return atualizar_equipamento(db, equipamento, usuario.id, dados)
+    try:
+        return atualizar_equipamento(db, equipamento, usuario.id, dados)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno ao atualizar equipamento: {str(e)}"
+        )
 
 
 @router.delete("/{equipamento_id}", response_model=MessageResponse)
@@ -75,5 +100,24 @@ def deletar(
     if not equipamento:
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
 
-    deletar_equipamento(db, equipamento)
-    return {"message": "Equipamento deletado com sucesso"}
+    try:
+        deletar_equipamento(db, equipamento)
+        return {"message": "Equipamento deletado com sucesso"}
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir este equipamento porque existem manutenções vinculadas a ele."
+        )
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno ao excluir equipamento: {str(e)}"
+        )
