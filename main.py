@@ -15,7 +15,6 @@ origins = [
     "http://localhost:5500",
     "http://127.0.0.1:5500",
     "https://frontend-equipamentos-six.vercel.app",
-    "https://frontend-equipamentos-six.vercel.app/"
 ]
 
 app.add_middleware(
