@@ -1,24 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import settings
 from database import Base, engine
 from routers.auth_router import router as auth_router
 from routers.equipamentos_router import router as equipamentos_router
 from routers.manutencoes_router import router as manutencoes_router
 
-app = FastAPI(title=settings.APP_NAME)
+app = FastAPI(
+    title="Fleet Maintenance System",
+    version="0.1.0"
+)
 
-
-@app.on_event("startup")
-def startup():
-    Base.metadata.create_all(bind=engine)
-
+origins = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "https://frontend-equipamentos-six.vercel.app",
+    "https://frontend-equipamentos-six.vercel.app/"
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.FRONTEND_ORIGINS,
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,6 +31,11 @@ app.include_router(equipamentos_router)
 app.include_router(manutencoes_router)
 
 
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
+
+
 @app.get("/")
-def home():
-    return {"message": "Fleet Maintenance API online 🚀"}
+def root():
+    return {"message": "API online"}
