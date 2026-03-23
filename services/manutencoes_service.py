@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from models import Equipamento, Manutencao
 
 
-STATUS_ABERTOS = {"aberta", "em andamento", "pendente"}
+STATUS_ABERTOS = {"aberta", "em andamento", "pendente", "agendada"}
 STATUS_CONCLUIDOS = {"concluida", "concluída", "finalizada", "encerrada"}
 
 
@@ -73,7 +73,7 @@ def montar_item_manutencao(manutencao: Manutencao, equipamento_nome: str | None 
         "id": manutencao.id,
         "titulo": manutencao.titulo,
         "descricao": manutencao.descricao,
-        "tipo": manutencao.tipo,
+        "prioridade": manutencao.prioridade,
         "status": manutencao.status,
         "data_criacao": manutencao.data_criacao,
         "data_prevista": manutencao.data_prevista,
@@ -166,7 +166,7 @@ def criar_manutencao(db: Session, usuario_id: int, dados):
     nova = Manutencao(
         titulo=dados.titulo,
         descricao=dados.descricao,
-        tipo=dados.tipo,
+        prioridade=dados.prioridade,
         status=dados.status,
         equipamento_id=dados.equipamento_id,
         usuario_id=usuario_id,
@@ -202,8 +202,8 @@ def atualizar_manutencao(db: Session, manutencao: Manutencao, usuario_id: int, d
     if dados.descricao is not None:
         manutencao.descricao = dados.descricao
 
-    if dados.tipo is not None:
-        manutencao.tipo = dados.tipo
+    if dados.prioridade is not None:
+        manutencao.prioridade = dados.prioridade
 
     if dados.status is not None:
         manutencao.status = dados.status

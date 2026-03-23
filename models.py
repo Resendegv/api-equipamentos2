@@ -51,7 +51,7 @@ class Manutencao(Base):
     id = Column(Integer, primary_key=True, index=True)
     titulo = Column(String, nullable=False)
     descricao = Column(Text, nullable=True)
-    tipo = Column(String, nullable=False)
+    prioridade = Column(String, nullable=False, default="media")
     status = Column(String, nullable=False)
     data_criacao = Column(DateTime, default=datetime.utcnow, nullable=False)
     data_prevista = Column(DateTime, nullable=True)

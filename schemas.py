@@ -71,7 +71,7 @@ class EquipamentoListResponse(BaseModel):
 class ManutencaoBase(BaseModel):
     titulo: str
     descricao: Optional[str] = None
-    tipo: str
+    prioridade: str = Field(default="media")
     status: str
     data_prevista: Optional[datetime] = None
 
@@ -83,7 +83,7 @@ class ManutencaoCreate(ManutencaoBase):
 class ManutencaoUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
-    tipo: Optional[str] = None
+    prioridade: Optional[str] = None
     status: Optional[str] = None
     equipamento_id: Optional[int] = None
     data_prevista: Optional[datetime] = None
@@ -94,7 +94,7 @@ class ManutencaoOut(BaseModel):
     id: int
     titulo: str
     descricao: Optional[str]
-    tipo: str
+    prioridade: str
     status: str
     data_criacao: datetime
     data_prevista: Optional[datetime]
