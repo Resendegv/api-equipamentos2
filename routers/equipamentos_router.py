@@ -101,7 +101,7 @@ def deletar(
         raise HTTPException(status_code=404, detail="Equipamento não encontrado")
 
     try:
-        deletar_equipamento(db, equipamento)
+        deletar_equipamento(db, equipamento, usuario.id)
         return {"message": "Equipamento deletado com sucesso"}
 
     except IntegrityError:

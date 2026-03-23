@@ -70,16 +70,16 @@ def listar_equipamentos_do_usuario(db: Session, usuario_id: int, pagina: int, po
     }
 
 
-def existe_manutencao_aberta(db: Session, equipamento_id: int, usuario_id: int) -> bool:
-    manutencoes = (
+def existe_manutencao(db: Session, equipamento_id: int, usuario_id: int) -> bool:
+    return (
         db.query(Manutencao)
         .filter(
             Manutencao.equipamento_id == equipamento_id,
             Manutencao.usuario_id == usuario_id
         )
-        .all()
+        .first()
+        is not None
     )
-    return any(status_em_aberto(item.status) for item in manutencoes)
 
 
 def criar_equipamento(db: Session, usuario_id: int, dados):
@@ -106,7 +106,7 @@ def atualizar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int
     equipamento.fabricante = dados.fabricante
     equipamento.ano = dados.ano
 
-    if existe_manutencao_aberta(db, equipamento.id, usuario_id):
+    if existe_manutencao(db, equipamento.id, usuario_id):
         equipamento.status = "em manutenção"
     else:
         equipamento.status = validar_status_manual(dados.status)
@@ -116,6 +116,21 @@ def atualizar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int
     return equipamento
 
 
-def deletar_equipamento(db: Session, equipamento: Equipamento):
-    db.delete(equipamento)
-    db.commit()
+def deletar_equipamento(db: Session, equipamento: Equipamento, usuario_id: int):
+    
+    # 🔥 VALIDAÇÃO CRÍTICA
+    if existe_manutencao(db, equipamento.id, usuario_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível excluir: existem manutenções vinculadas a este equipamento"
+        )
+
+    try:
+        db.delete(equipamento)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao deletar equipamento: {str(e)}"
+        )
