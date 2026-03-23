@@ -3,7 +3,6 @@ import os
 
 class Settings:
     APP_NAME = os.getenv("APP_NAME", "Fleet Maintenance System")
-
     SECRET_KEY = os.getenv("SECRET_KEY", "troque_essa_chave_em_producao")
     ALGORITHM = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
@@ -22,10 +21,10 @@ class Settings:
         url = os.getenv("DATABASE_URL", "").strip()
 
         if not url:
-            raise ValueError("DATABASE_URL não foi definida no ambiente.")
+            raise ValueError(
+                "DATABASE_URL não foi definida. Configure essa variável no ambiente do Render."
+            )
 
-        # Alguns provedores entregam postgres://
-        # SQLAlchemy com psycopg2 espera postgresql+psycopg2://
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+psycopg2://", 1)
         elif url.startswith("postgresql://"):
